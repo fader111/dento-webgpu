@@ -4,7 +4,7 @@ Desktop application for viewing and processing 3D dental scans.
 
 ![Screenshot](public/assets/init_scr.png)
 
-<video src="public/assets/demo.mp4" controls width="100%"></video>
+![Demo](public/assets/demo.gif)
 
 ## Features
 
