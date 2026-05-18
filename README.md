@@ -1,30 +1,26 @@
-# React + TypeScript + Vite
+# Dento WebGPU
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Desktop application for viewing and processing 3D dental scans.
 
-Currently, two official plugins are available:
+![Screenshot](public/assets/init_scr.png)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Features
 
-## Expanding the ESLint configuration
+- Load OBJ and STL dental scan files
+- Trackball 3D rotation and zoom
+- Remove scan base (density-based filtering)
+- Laplacian smoothing on cut edges
+- Undo / Redo support (Ctrl+Z / Ctrl+Y)
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+## Tech Stack
 
-- Configure the top-level `parserOptions` property like this:
+- Electron + Vite + React + TypeScript
+- Babylon.js (3D rendering)
+- Material UI (interface)
 
-```js
-export default {
-  // other rules...
-  parserOptions: {
-    ecmaVersion: 'latest',
-    sourceType: 'module',
-    project: ['./tsconfig.json', './tsconfig.node.json'],
-    tsconfigRootDir: __dirname,
-  },
-}
+## Getting Started
+
+```bash
+npm install
+npm run dev
 ```
-
-- Replace `plugin:@typescript-eslint/recommended` to `plugin:@typescript-eslint/recommended-type-checked` or `plugin:@typescript-eslint/strict-type-checked`
-- Optionally add `plugin:@typescript-eslint/stylistic-type-checked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and add `plugin:react/recommended` & `plugin:react/jsx-runtime` to the `extends` list
