@@ -23,13 +23,15 @@ export interface Scene3DHandle {
 interface Scene3DProps {
   modelUrl?: string
   onHistoryChange?: (canUndo: boolean, canRedo: boolean) => void
+  showGrid?: boolean
 }
 
 const Scene3D = forwardRef<Scene3DHandle, Scene3DProps>(function Scene3D(
-  { modelUrl = config.defaultModelUrl, onHistoryChange },
+  { modelUrl = config.defaultModelUrl, onHistoryChange, showGrid = true },
   ref
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const gridCanvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<Engine | null>(null)
   const sceneRef = useRef<Scene | null>(null)
   const pivotRef = useRef<TransformNode | null>(null)
@@ -37,8 +39,11 @@ const Scene3D = forwardRef<Scene3DHandle, Scene3DProps>(function Scene3D(
   const cameraRef = useRef<FreeCamera | null>(null)
   const meshRef = useRef<Mesh | null>(null)
   const historyRef = useRef<HistoryActions<MeshSnapshot> | null>(null)
+  const showGridRef = useRef(showGrid)
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
+
+  useEffect(() => { showGridRef.current = showGrid }, [showGrid])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -222,11 +227,100 @@ const Scene3D = forwardRef<Scene3DHandle, Scene3DProps>(function Scene3D(
 
     loadModel(modelUrl)
 
-    engine.runRenderLoop(() => scene.render())
+    // Grid overlay drawing
+    const drawGrid = (visible: boolean) => {
+      const gridCanvas = gridCanvasRef.current
+      if (!gridCanvas) return
+      const ctx = gridCanvas.getContext('2d')
+      if (!ctx) return
 
-    const handleResize = () => engine.resize()
+      const w = gridCanvas.width
+      const h = gridCanvas.height
+      if (w === 0 || h === 0) return
+
+      ctx.clearRect(0, 0, w, h)
+      if (!visible) return
+
+      const { grid: gridCfg } = config
+      // Calculate pixels per mm based on camera distance and FOV
+      const dist = Math.abs(camera.position.z)
+      const visibleHeight = 2 * dist * Math.tan(camera.fov / 2)
+      const pxPerMm = h / visibleHeight * gridCfg.step
+
+      // Choose step multiplier so grid isn't too dense
+      let stepPx = pxPerMm
+      let stepMm = gridCfg.step
+      if (stepPx < 4) { stepPx *= 10; stepMm *= 10 }
+      if (stepPx < 4) return // too zoomed out
+
+      const centerX = w / 2
+      const centerY = h / 2
+
+      const colorBase = gridCfg.color.map(c => Math.round(c * 255)).join(',')
+
+      // Draw minor lines
+      ctx.beginPath()
+      ctx.strokeStyle = `rgba(${colorBase},${gridCfg.alpha})`
+      ctx.lineWidth = 0.5
+
+      const countX = Math.ceil(centerX / stepPx)
+      for (let i = -countX; i <= countX; i++) {
+        if (i % 10 === 0) continue
+        const x = centerX + i * stepPx
+        ctx.moveTo(x, 0)
+        ctx.lineTo(x, h)
+      }
+      const countY = Math.ceil(centerY / stepPx)
+      for (let i = -countY; i <= countY; i++) {
+        if (i % 10 === 0) continue
+        const y = centerY + i * stepPx
+        ctx.moveTo(0, y)
+        ctx.lineTo(w, y)
+      }
+      ctx.stroke()
+
+      // Draw major lines (every 10th)
+      ctx.beginPath()
+      ctx.strokeStyle = `rgba(${colorBase},${Math.min(gridCfg.alpha * 2.5, 1)})`
+      ctx.lineWidth = 1
+
+      for (let i = -countX; i <= countX; i++) {
+        if (i % 10 !== 0) continue
+        const x = centerX + i * stepPx
+        ctx.moveTo(x, 0)
+        ctx.lineTo(x, h)
+      }
+      for (let i = -countY; i <= countY; i++) {
+        if (i % 10 !== 0) continue
+        const y = centerY + i * stepPx
+        ctx.moveTo(0, y)
+        ctx.lineTo(w, y)
+      }
+      ctx.stroke()
+    }
+
+    engine.runRenderLoop(() => {
+      scene.render()
+      drawGrid(showGridRef.current)
+    })
+
+    const handleResize = () => {
+      engine.resize()
+      const gc = gridCanvasRef.current
+      if (gc && gc.parentElement) {
+        gc.width = gc.parentElement.clientWidth
+        gc.height = gc.parentElement.clientHeight
+      }
+    }
     window.addEventListener('resize', handleResize)
-    const resizeObserver = new ResizeObserver(() => engine.resize())
+    const resizeObserver = new ResizeObserver(() => {
+      engine.resize()
+      const gc = gridCanvasRef.current
+      if (gc && gc.parentElement) {
+        gc.width = gc.parentElement.clientWidth
+        gc.height = gc.parentElement.clientHeight
+      }
+    })
     resizeObserver.observe(canvas.parentElement!)
 
     return () => {
@@ -376,6 +470,14 @@ const Scene3D = forwardRef<Scene3DHandle, Scene3DProps>(function Scene3D(
       <canvas
         ref={canvasRef}
         style={{ width: '100%', height: '100%', display: 'block', outline: 'none' }}
+      />
+      <canvas
+        ref={gridCanvasRef}
+        style={{
+          position: 'absolute', top: 0, left: 0,
+          width: '100%', height: '100%',
+          pointerEvents: 'none',
+        }}
       />
     </div>
   )

@@ -28,6 +28,14 @@ export const config = {
     specularColor: [0.2, 0.2, 0.2] as const,
   },
 
+  /** Grid */
+  grid: {
+    step: 1,
+    size: 100,
+    color: [0.55, 0.55, 0.55] as const,
+    alpha: 0.4,
+  },
+
   /** Trackball rotation */
   trackball: {
     rotationSpeed: 0.005,

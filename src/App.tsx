@@ -35,6 +35,8 @@ import OpenWithIcon from '@mui/icons-material/OpenWith'
 import ThreeDRotationIcon from '@mui/icons-material/ThreeDRotation'
 import SettingsIcon from '@mui/icons-material/Settings'
 import InfoIcon from '@mui/icons-material/Info'
+import GridOnIcon from '@mui/icons-material/GridOn'
+import GridOffIcon from '@mui/icons-material/GridOff'
 
 const drawerWidth = 220
 
@@ -79,6 +81,7 @@ function App() {
   const [helpMenuAnchor, setHelpMenuAnchor] = useState<null | HTMLElement>(null)
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
+  const [showGrid, setShowGrid] = useState(false)
   const sceneRef = useRef<Scene3DHandle>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -125,6 +128,7 @@ function App() {
 
   const sidebarItems = [
     { icon: <ViewInArIcon />, label: '3D Model' },
+    { icon: showGrid ? <GridOnIcon /> : <GridOffIcon />, label: 'Grid', onClick: () => setShowGrid(g => !g) },
     { icon: <CropFreeIcon />, label: 'Sections' },
     { icon: <SettingsIcon />, label: 'Settings' },
     { icon: <InfoIcon />, label: 'Info' },
@@ -258,7 +262,7 @@ function App() {
             <List dense>
               {sidebarItems.map((item) => (
                 <ListItem key={item.label} disablePadding>
-                  <ListItemButton>
+                  <ListItemButton onClick={item.onClick}>
                     <ListItemIcon sx={{ minWidth: 36 }}>{item.icon}</ListItemIcon>
                     <ListItemText primary={item.label} />
                   </ListItemButton>
@@ -277,7 +281,7 @@ function App() {
               overflow: 'hidden',
             }}
           >
-            <Scene3D ref={sceneRef} modelUrl="/assets/01F4JV8X_lower.obj" onHistoryChange={handleHistoryChange} />
+            <Scene3D ref={sceneRef} modelUrl="/assets/01F4JV8X_lower.obj" onHistoryChange={handleHistoryChange} showGrid={showGrid} />
           </Box>
         </Box>
       </Box>
