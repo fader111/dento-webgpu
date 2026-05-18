@@ -55,6 +55,7 @@ const Scene3D = forwardRef<Scene3DHandle, Scene3DProps>(function Scene3D(
     const camera = new FreeCamera('camera', new Vector3(0, 0, sceneCfg.cameraInitialZ), scene)
     camera.setTarget(Vector3.Zero())
     camera.minZ = sceneCfg.cameraMinZ
+    camera.fov = sceneCfg.fov
     // Disable default camera controls - we handle interaction manually
     camera.inputs.clear()
 
@@ -83,17 +84,23 @@ const Scene3D = forwardRef<Scene3DHandle, Scene3DProps>(function Scene3D(
 
     // Trackball interaction state
     let isDragging = false
+    let isPanning = false
     let lastX = 0
     let lastY = 0
     const rotationSpeed = trackball.rotationSpeed
+    const panSpeed = 0.5
 
     scene.onPointerObservable.add((pointerInfo) => {
       const evt = pointerInfo.event as PointerEvent
 
       switch (pointerInfo.type) {
         case PointerEventTypes.POINTERDOWN:
-          if (evt.button === 0) { // LMB - rotate
-            isDragging = true
+          if (evt.button === 0) {
+            if (evt.ctrlKey) {
+              isPanning = true
+            } else {
+              isDragging = true
+            }
             lastX = evt.clientX
             lastY = evt.clientY
             canvas.setPointerCapture(evt.pointerId)
@@ -103,6 +110,7 @@ const Scene3D = forwardRef<Scene3DHandle, Scene3DProps>(function Scene3D(
         case PointerEventTypes.POINTERUP:
           if (evt.button === 0) {
             isDragging = false
+            isPanning = false
             canvas.releasePointerCapture(evt.pointerId)
           }
           break
@@ -130,6 +138,24 @@ const Scene3D = forwardRef<Scene3DHandle, Scene3DProps>(function Scene3D(
             const deltaQ = qX.multiply(qY)
 
             pivot.rotationQuaternion = deltaQ.multiply(pivot.rotationQuaternion!)
+          } else if (isPanning) {
+            const dx = evt.clientX - lastX
+            const dy = evt.clientY - lastY
+            lastX = evt.clientX
+            lastY = evt.clientY
+
+            if (dx === 0 && dy === 0) return
+
+            // Pan: move pivot position in screen-space directions
+            const distance = Math.abs(camera.position.z)
+            const scale = distance * panSpeed / canvas.height
+
+            const view = camera.getViewMatrix()
+            const right = new Vector3(view.m[0], view.m[4], view.m[8])
+            const up = new Vector3(view.m[1], view.m[5], view.m[9])
+
+            pivot.position.addInPlace(right.scale(dx * scale))
+            pivot.position.addInPlace(up.scale(-dy * scale))
           }
           break
 

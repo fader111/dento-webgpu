@@ -8,6 +8,7 @@ export const config = {
   scene: {
     cameraInitialZ: -150,
     cameraMinZ: 0.1,
+    fov: 0.4,
     zoomSpeed: 0.1,
     zoomMin: -10,
     zoomMax: -500,
