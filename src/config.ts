@@ -48,8 +48,8 @@ export const config = {
 
   /** Boundary smoothing after density filter */
   smoothing: {
-    iterations: 5,
-    factor: 0.5,
+    iterations: 15,
+    factor: 0.8,
   },
 
   /** Undo/Redo history */

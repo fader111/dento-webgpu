@@ -56,6 +56,18 @@ const darkTheme = createTheme({
       active: config.theme.iconColor,
     },
   },
+  components: {
+    MuiMenuItem: {
+      styleOverrides: {
+        root: {
+          fontSize: 12,
+          minHeight: 24,
+          paddingTop: 2,
+          paddingBottom: 2,
+        },
+      },
+    },
+  },
 })
 
 function App() {
@@ -68,10 +80,23 @@ function App() {
   const [canUndo, setCanUndo] = useState(false)
   const [canRedo, setCanRedo] = useState(false)
   const sceneRef = useRef<Scene3DHandle>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleHistoryChange = useCallback((u: boolean, r: boolean) => {
     setCanUndo(u)
     setCanRedo(r)
+  }, [])
+
+  const handleOpenFile = useCallback(() => {
+    fileInputRef.current?.click()
+  }, [])
+
+  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      sceneRef.current?.loadFile(file)
+    }
+    e.target.value = ''
   }, [])
 
   const handleMenuClose = () => {
@@ -83,7 +108,7 @@ function App() {
   }
 
   const toolbarItems = [
-    { icon: <FolderOpenIcon />, tooltip: 'Open File' },
+    { icon: <FolderOpenIcon />, tooltip: 'Open File', onClick: handleOpenFile },
     { icon: <SaveIcon />, tooltip: 'Save' },
     { divider: true },
     { icon: <UndoIcon />, tooltip: 'Undo', onClick: () => sceneRef.current?.undo(), disabled: !canUndo },
@@ -108,10 +133,17 @@ function App() {
   return (
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".obj,.stl"
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
       <Box sx={{ display: 'flex', height: '100vh', flexDirection: 'column' }}>
         {/* Menu Bar */}
         <AppBar position="static" elevation={0} sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
-          <Toolbar variant="dense" sx={{ minHeight: 36, gap: 0 }}>
+          <Toolbar variant="dense" sx={{ minHeight: 24, gap: 0 }}>
             <IconButton
               edge="start"
               color="inherit"
@@ -122,11 +154,11 @@ function App() {
               <MenuIcon fontSize="small" />
             </IconButton>
 
-            <Button color="inherit" size="small" onClick={(e) => setFileMenuAnchor(e.currentTarget)}>
+            <Button color="inherit" size="small" sx={{ fontSize: 12, py: 0, px: 0.75, minHeight: 24, textTransform: 'none' }} onClick={(e) => setFileMenuAnchor(e.currentTarget)}>
               File
             </Button>
             <Menu anchorEl={fileMenuAnchor} open={Boolean(fileMenuAnchor)} onClose={handleMenuClose}>
-              <MenuItem onClick={handleMenuClose}>Open...</MenuItem>
+              <MenuItem onClick={() => { handleMenuClose(); handleOpenFile() }}>Open...</MenuItem>
               <MenuItem onClick={handleMenuClose}>Save</MenuItem>
               <MenuItem onClick={handleMenuClose}>Save As...</MenuItem>
               <Divider />
@@ -138,7 +170,7 @@ function App() {
               <MenuItem onClick={handleMenuClose}>Exit</MenuItem>
             </Menu>
 
-            <Button color="inherit" size="small" onClick={(e) => setEditMenuAnchor(e.currentTarget)}>
+            <Button color="inherit" size="small" sx={{ fontSize: 12, py: 0, px: 0.75, minHeight: 24, textTransform: 'none' }} onClick={(e) => setEditMenuAnchor(e.currentTarget)}>
               Edit
             </Button>
             <Menu anchorEl={editMenuAnchor} open={Boolean(editMenuAnchor)} onClose={handleMenuClose}>
@@ -151,7 +183,7 @@ function App() {
               <MenuItem onClick={handleMenuClose}>Preferences</MenuItem>
             </Menu>
 
-            <Button color="inherit" size="small" onClick={(e) => setViewMenuAnchor(e.currentTarget)}>
+            <Button color="inherit" size="small" sx={{ fontSize: 12, py: 0, px: 0.75, minHeight: 24, textTransform: 'none' }} onClick={(e) => setViewMenuAnchor(e.currentTarget)}>
               View
             </Button>
             <Menu anchorEl={viewMenuAnchor} open={Boolean(viewMenuAnchor)} onClose={handleMenuClose}>
@@ -166,14 +198,14 @@ function App() {
               <MenuItem onClick={handleMenuClose}>Fullscreen</MenuItem>
             </Menu>
 
-            <Button color="inherit" size="small" onClick={(e) => setToolsMenuAnchor(e.currentTarget)}>
+            <Button color="inherit" size="small" sx={{ fontSize: 12, py: 0, px: 0.75, minHeight: 24, textTransform: 'none' }} onClick={(e) => setToolsMenuAnchor(e.currentTarget)}>
               Tools
             </Button>
             <Menu anchorEl={toolsMenuAnchor} open={Boolean(toolsMenuAnchor)} onClose={handleMenuClose}>
               <MenuItem onClick={() => { handleMenuClose(); sceneRef.current?.removeBase() }}>Remove Base</MenuItem>
             </Menu>
 
-            <Button color="inherit" size="small" onClick={(e) => setHelpMenuAnchor(e.currentTarget)}>
+            <Button color="inherit" size="small" sx={{ fontSize: 12, py: 0, px: 0.75, minHeight: 24, textTransform: 'none' }} onClick={(e) => setHelpMenuAnchor(e.currentTarget)}>
               Help
             </Button>
             <Menu anchorEl={helpMenuAnchor} open={Boolean(helpMenuAnchor)} onClose={handleMenuClose}>

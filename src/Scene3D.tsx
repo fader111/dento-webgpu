@@ -6,6 +6,7 @@ import {
 } from '@babylonjs/core'
 import { ImportMeshAsync } from '@babylonjs/core/Loading/sceneLoader'
 import '@babylonjs/loaders/OBJ'
+import '@babylonjs/loaders/STL'
 import { removeDenseRegions } from './mesh'
 import { createHistory, captureMeshSnapshot, type HistoryActions, type MeshSnapshot } from './history'
 import { config } from './config'
@@ -14,6 +15,7 @@ export interface Scene3DHandle {
   undo(): void
   redo(): void
   removeBase(): void
+  loadFile(file: File): void
   canUndo: boolean
   canRedo: boolean
 }
@@ -29,6 +31,10 @@ const Scene3D = forwardRef<Scene3DHandle, Scene3DProps>(function Scene3D(
 ) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const engineRef = useRef<Engine | null>(null)
+  const sceneRef = useRef<Scene | null>(null)
+  const pivotRef = useRef<TransformNode | null>(null)
+  const matRef = useRef<StandardMaterial | null>(null)
+  const cameraRef = useRef<FreeCamera | null>(null)
   const meshRef = useRef<Mesh | null>(null)
   const historyRef = useRef<HistoryActions<MeshSnapshot> | null>(null)
   const [canUndo, setCanUndo] = useState(false)
@@ -63,12 +69,17 @@ const Scene3D = forwardRef<Scene3DHandle, Scene3DProps>(function Scene3D(
     // Root node for all model meshes - we rotate this
     const pivot = new TransformNode('pivot', scene)
     pivot.rotationQuaternion = Quaternion.Identity()
+    pivotRef.current = pivot
 
     // Tooth material
     const mat = new StandardMaterial('toothMat', scene)
     mat.diffuseColor = new Color3(...matCfg.diffuseColor)
     mat.specularColor = new Color3(...matCfg.specularColor)
     mat.backFaceCulling = false
+    matRef.current = mat
+
+    sceneRef.current = scene
+    cameraRef.current = camera
 
     // Trackball interaction state
     let isDragging = false
@@ -134,9 +145,13 @@ const Scene3D = forwardRef<Scene3DHandle, Scene3DProps>(function Scene3D(
       }
     })
 
-    const loadModel = async () => {
+    const loadModel = async (url: string) => {
       try {
-        const result = await ImportMeshAsync('/assets/01F4JV8X_lower.obj', scene)
+        // Remove previous meshes from pivot
+        pivot.getChildMeshes().forEach(m => m.dispose())
+        meshRef.current = null
+
+        const result = await ImportMeshAsync(url, scene, { pluginExtension: '.obj' })
         console.log('Loaded meshes:', result.meshes.length)
 
         result.meshes.forEach((mesh) => {
@@ -179,7 +194,7 @@ const Scene3D = forwardRef<Scene3DHandle, Scene3DProps>(function Scene3D(
       }
     }
 
-    loadModel()
+    loadModel(modelUrl)
 
     engine.runRenderLoop(() => scene.render())
 
@@ -194,6 +209,10 @@ const Scene3D = forwardRef<Scene3DHandle, Scene3DProps>(function Scene3D(
       scene.dispose()
       engine.dispose()
       engineRef.current = null
+      sceneRef.current = null
+      pivotRef.current = null
+      matRef.current = null
+      cameraRef.current = null
     }
   }, [modelUrl])
 
@@ -251,13 +270,65 @@ const Scene3D = forwardRef<Scene3DHandle, Scene3DProps>(function Scene3D(
     }
   }, [applySnapshotToMesh, updateHistoryState])
 
+  const loadFile = useCallback((file: File) => {
+    const scene = sceneRef.current
+    const pivot = pivotRef.current
+    const mat = matRef.current
+    const camera = cameraRef.current
+    if (!scene || !pivot || !mat || !camera) return
+
+    const url = URL.createObjectURL(file)
+    const ext = '.' + file.name.split('.').pop()!.toLowerCase()
+
+    // Remove previous meshes
+    pivot.getChildMeshes().forEach(m => m.dispose())
+    meshRef.current = null
+
+    ImportMeshAsync(url, scene, { pluginExtension: ext }).then((result) => {
+      result.meshes.forEach((mesh) => {
+        mesh.useVertexColors = false
+        mesh.material = mat
+
+        if (mesh instanceof Mesh && mesh.getTotalVertices() > 0) {
+          const positions = mesh.getVerticesData('position')
+          const indices = mesh.getIndices()
+          if (positions && indices) {
+            const normals: number[] = []
+            VertexData.ComputeNormals(positions, indices, normals)
+            mesh.setVerticesData('normal', normals)
+            historyRef.current = createHistory(
+              captureMeshSnapshot(positions, indices, normals)
+            )
+            updateHistoryState()
+          }
+          meshRef.current = mesh
+        }
+      })
+
+      const worldExtends = scene.getWorldExtends()
+      const center = worldExtends.min.add(worldExtends.max).scale(0.5)
+      result.meshes.forEach((mesh) => {
+        mesh.position.subtractInPlace(center)
+        mesh.parent = pivot
+      })
+
+      const size = worldExtends.max.subtract(worldExtends.min).length()
+      camera.position.z = -size * config.scene.cameraDistanceMultiplier
+      URL.revokeObjectURL(url)
+    }).catch((e) => {
+      console.error('Failed to load file:', e)
+      URL.revokeObjectURL(url)
+    })
+  }, [updateHistoryState])
+
   useImperativeHandle(ref, () => ({
     undo,
     redo,
     removeBase,
+    loadFile,
     canUndo,
     canRedo,
-  }), [undo, redo, removeBase, canUndo, canRedo])
+  }), [undo, redo, removeBase, loadFile, canUndo, canRedo])
 
   // Keyboard shortcuts for undo/redo
   useEffect(() => {
